@@ -1,20 +1,23 @@
 use std::cmp::Ordering;
 #[derive(Debug)]
-pub struct Heavy {
-    weights: Vec<i64>,
+pub struct Heavy<'a> {
+    weights: &'a [u8],
     countdown: u64,
 }
 
-impl Heavy {
-    pub fn new(weights: Vec<i64>, countdown: u64) -> Self {
+impl<'a> Heavy<'a> {
+    pub fn new(weights: &'a [u8], countdown: u64) -> Self {
         Self { weights, countdown }
     }
-    pub fn weigh(self, lhs: &[usize], rhs: &[usize]) -> (Option<Ordering>, Self) {
+    pub fn weigh<I>(self, lhs: I, rhs: I) -> (Option<Ordering>, Self)
+    where
+        I: std::iter::Iterator<Item = usize>,
+    {
         if self.countdown == 0 {
             (None, self)
         } else {
-            let lhs_sum: i64 = lhs.iter().map(|index| self.weights[*index]).sum();
-            let rhs_sum: i64 = rhs.iter().map(|index| self.weights[*index]).sum();
+            let lhs_sum: i64 = lhs.map(|index| self.weights[index] as i64).sum();
+            let rhs_sum: i64 = rhs.map(|index| self.weights[index] as i64).sum();
             let self_new = Self {
                 countdown: self.countdown - 1,
                 ..self
@@ -25,28 +28,24 @@ impl Heavy {
     }
 }
 
-pub fn generate_index_list(slice: &[i64]) -> Vec<usize> {
-    let mut index_list = Vec::new();
-    for (index, _) in slice.iter().enumerate() {
-        index_list.push(index);
-    }
-    index_list
-}
-
-pub fn find_largest(heavy: Heavy, index_list: &[usize]) -> Option<usize> {
-    if index_list.len() <= 1 {
-        index_list.first().copied()
+pub fn find_largest(heavy: Heavy, start: usize, len: usize) -> Option<usize> {
+    if len <= 1 {
+        Some(start)
     } else {
-        let chunk_size = 1.max(index_list.len().div_ceil(3));
-        let chunks: Vec<_> = index_list.chunks(chunk_size).collect();
-        dbg!(&chunks);
-        let (Some(cmp), heavy) = heavy.weigh(chunks[0], chunks[1]) else {
+        let chunk_size = len.div_ceil(3);
+        let left_end = start + chunk_size;
+        let left = start..left_end;
+        let mid_end = left_end + chunk_size;
+        let mid = left_end..mid_end;
+        let right_end = mid_end + chunk_size;
+        dbg!(&left, &mid, mid_end..right_end);
+        let (Some(cmp), heavy) = heavy.weigh(left, mid) else {
             return None;
         };
         match cmp {
-            Ordering::Less => find_largest(heavy, chunks[1]),
-            Ordering::Equal => find_largest(heavy, chunks[2]),
-            Ordering::Greater => find_largest(heavy, chunks[0]),
+            Ordering::Less => find_largest(heavy, left_end, chunk_size),
+            Ordering::Equal => find_largest(heavy, mid_end, chunk_size),
+            Ordering::Greater => find_largest(heavy, start, chunk_size),
         }
     }
 }
@@ -60,56 +59,47 @@ mod tests {
     fn test_breakage() {
         let weights = vec![1, 1, 1, 1, 1, 1, 1, 2];
         let countdown = 4;
-        let heavy = Heavy::new(weights, countdown);
+        let heavy = Heavy::new(&weights, countdown);
 
-        let new_heavy = heavy.weigh(&[0], &[0]);
+        let new_heavy = heavy.weigh([0].into_iter(), [0].into_iter());
         assert_eq!(new_heavy.0, Some(Ordering::Equal));
         let new_heavy = new_heavy
             .1
-            .weigh(&[0], &[0])
+            .weigh([0].into_iter(), [0].into_iter())
             .1
-            .weigh(&[0], &[0])
+            .weigh(0..1, 0..1)
             .1
-            .weigh(&[0], &[0])
+            .weigh([0].iter().copied(), [0].iter().copied())
             .1
-            .weigh(&[0], &[0]); // the 5th one should fail
+            .weigh(0..0, 0..0);
         assert_eq!(new_heavy.0, None);
-    }
-
-    #[test]
-    fn check_index_list() {
-        let weights = vec![1, 3, 1, 1, 1, 1, 1, 1];
-        let index_list = vec![0, 1, 2, 3, 4, 5, 6, 7];
-        assert_eq!(index_list, generate_index_list(&weights));
     }
 
     #[test]
     fn actually_find_the_biggest() {
         let weights = vec![1, 3, 1, 1, 1, 1, 1, 1];
-        let index_list = [0, 1, 2, 3, 4, 5, 6, 7];
         let countdown = 4;
-        let heavy = Heavy::new(weights.clone(), countdown);
-        assert_eq!(find_largest(heavy, &index_list), Some(1));
+        let heavy = Heavy::new(&weights, countdown);
+        assert_eq!(find_largest(heavy, 0, 8), Some(1));
         let countdown = 3;
-        let heavy = Heavy::new(weights.clone(), countdown);
-        assert_eq!(find_largest(heavy, &index_list), Some(1));
+        let heavy = Heavy::new(&weights, countdown);
+        assert_eq!(find_largest(heavy, 0, 8), Some(1));
         let countdown = 2;
-        let heavy = Heavy::new(weights.clone(), countdown);
-        assert_eq!(find_largest(heavy, &index_list), Some(1));
+        let heavy = Heavy::new(&weights, countdown);
+        assert_eq!(find_largest(heavy, 0, 8), Some(1));
     }
 
     #[test]
     fn find_biggest_for_arbitary_n() {
-        let length = 88;
-        let mut weights = vec![2; length];
+        const LENGTH: usize = 3491900090;
+        let mut weights = vec![2; LENGTH];
         let big_index = 41;
         weights[big_index] = 23;
-        let index_list = generate_index_list(&weights);
-        let countdown = length as u64 / 2;
-        let heavy = Heavy::new(weights.clone(), countdown);
-        assert_eq!(find_largest(heavy, &index_list), Some(big_index));
-        let countdown = (length as f64).powf(1.0 / 3.0).ceil() as u64;
-        let heavy = Heavy::new(weights, countdown);
-        assert_eq!(find_largest(heavy, &index_list), Some(big_index));
+        let countdown = LENGTH as u64 / 2;
+        let heavy = Heavy::new(&weights, countdown);
+        assert_eq!(find_largest(heavy, 0, LENGTH), Some(big_index));
+        let countdown = (LENGTH as f64).powf(1.0 / 3.0).ceil() as u64;
+        let heavy = Heavy::new(&weights, countdown);
+        assert_eq!(find_largest(heavy, 0, LENGTH), Some(big_index));
     }
 }
