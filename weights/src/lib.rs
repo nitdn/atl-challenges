@@ -1,23 +1,33 @@
-use std::cmp::Ordering;
+use std::{
+    cmp::{Ordering, PartialOrd},
+    iter::{self, Sum},
+    marker::Copy,
+};
 #[derive(Debug)]
-pub struct Heavy<'a> {
-    weights: &'a [u8],
+pub struct Heavy<'a, T>
+where
+    T: Sum + PartialOrd + Copy + Into<u64>,
+{
+    weights: &'a [T],
     countdown: u64,
 }
 
-impl<'a> Heavy<'a> {
-    pub fn new(weights: &'a [u8], countdown: u64) -> Self {
+impl<'a, T> Heavy<'a, T>
+where
+    T: Sum + PartialOrd + Copy + Into<u64>,
+{
+    pub fn new(weights: &'a [T], countdown: u64) -> Self {
         Self { weights, countdown }
     }
     pub fn weigh<I>(self, lhs: I, rhs: I) -> (Option<Ordering>, Self)
     where
-        I: std::iter::Iterator<Item = usize>,
+        I: iter::Iterator<Item = usize>,
     {
         if self.countdown == 0 {
             (None, self)
         } else {
-            let lhs_sum: i64 = lhs.map(|index| self.weights[index] as i64).sum();
-            let rhs_sum: i64 = rhs.map(|index| self.weights[index] as i64).sum();
+            let lhs_sum: u64 = lhs.map(|index| self.weights[index].into()).sum();
+            let rhs_sum: u64 = rhs.map(|index| self.weights[index].into()).sum();
             let self_new = Self {
                 countdown: self.countdown - 1,
                 ..self
@@ -28,7 +38,10 @@ impl<'a> Heavy<'a> {
     }
 }
 
-pub fn find_largest(heavy: Heavy, start: usize, len: usize) -> Option<usize> {
+pub fn find_largest<T>(heavy: Heavy<T>, start: usize, len: usize) -> Option<usize>
+where
+    T: Sum + PartialOrd + Copy + Into<u64>,
+{
     if len <= 1 {
         Some(start)
     } else {
@@ -57,7 +70,7 @@ mod tests {
 
     #[test]
     fn test_breakage() {
-        let weights = vec![1, 1, 1, 1, 1, 1, 1, 2];
+        let weights = vec![1u8, 1, 1, 1, 1, 1, 1, 2];
         let countdown = 4;
         let heavy = Heavy::new(&weights, countdown);
 
@@ -77,7 +90,7 @@ mod tests {
 
     #[test]
     fn actually_find_the_biggest() {
-        let weights = vec![1, 3, 1, 1, 1, 1, 1, 1];
+        let weights = vec![1u8, 3, 1, 1, 1, 1, 1, 1];
         let countdown = 4;
         let heavy = Heavy::new(&weights, countdown);
         assert_eq!(find_largest(heavy, 0, 8), Some(1));
@@ -92,7 +105,8 @@ mod tests {
     #[test]
     fn find_biggest_for_arbitary_n() {
         const LENGTH: usize = 3491900090;
-        let mut weights = vec![2; LENGTH];
+        // const LENGTH: usize = 3491900090;
+        let mut weights = vec![2u8; LENGTH];
         let big_index = 41;
         weights[big_index] = 23;
         let countdown = LENGTH as u64 / 2;
