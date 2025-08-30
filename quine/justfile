@@ -1,0 +1,7 @@
+run_cmd := "cargo run --quiet"
+
+test:
+    cargo clippy 
+    cargo fmt --check
+    diff ./src/main.rs <({{run_cmd}})
+

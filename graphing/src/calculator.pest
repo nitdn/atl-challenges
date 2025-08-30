@@ -1,0 +1,25 @@
+// No whitespace allowed between digits
+mantissa =  { "." ~ ASCII_DIGIT+ }
+number   = @{ ASCII_DIGIT+ ~ mantissa? }
+var_x    =  { "x" }
+
+unary_minus =  { "-" }
+primary     = _{ number | var_x | "(" ~ expr ~ ")" }
+atom        = _{ unary_minus? ~ primary }
+
+bin_op         = _{ add | subtract | multiply | floor_division | divide | modulo | pow | log }
+add            =  { "+" }
+subtract       =  { "-" }
+multiply       =  { "*" }
+divide         =  { "/" }
+modulo         =  { "%" }
+floor_division =  { "//" }
+pow            =  { "^" }
+log            =  { "log" }
+
+expr = { atom ~ (bin_op ~ atom)* }
+
+// We can't have SOI and EOI on expr directly, because it is used recursively (e.g. with parentheses)
+equation = _{ SOI ~ expr ~ EOI }
+
+WHITESPACE = _{ " " }
