@@ -6,7 +6,7 @@ use pest::pratt_parser::PrattParser;
 
 pub mod ui_state;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Number(f32),
     UnaryMinus(Box<Expr>),
@@ -18,7 +18,7 @@ pub enum Expr {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Op {
     Add,
     Subtract,
@@ -28,6 +28,80 @@ pub enum Op {
     FloorDiv,
     Pow,
     Log,
+}
+
+impl Expr {
+    // This improved version handles constant folding more thoroughly.
+    pub fn fold_constants(&self) -> Expr {
+        match self {
+            Expr::Number(_) => self.clone(),
+            Expr::VarX => self.clone(),
+
+            Expr::UnaryMinus(expr) => {
+                let folded_expr = expr.fold_constants();
+                if let Expr::Number(val) = folded_expr {
+                    Expr::Number(-val)
+                } else {
+                    Expr::UnaryMinus(Box::new(folded_expr))
+                }
+            }
+
+            Expr::BinOp { lhs, op, rhs } => {
+                // First, recursively fold the left and right sides.
+                let folded_lhs = lhs.fold_constants();
+                let folded_rhs = rhs.fold_constants();
+
+                // Now, check the result of the folding.
+                match (&folded_lhs, &folded_rhs) {
+                    (Expr::Number(lval), Expr::Number(rval)) => {
+                        // Case 1: Both sides are numbers. Perform the calculation.
+                        let result = match op {
+                            Op::Add => lval + rval,
+                            Op::Subtract => lval - rval,
+                            Op::Multiply => lval * rval,
+                            Op::Divide => lval / rval,
+                            Op::Modulo => lval % rval,
+                            Op::FloorDiv => (lval / rval).floor(),
+                            Op::Pow => lval.powf(*rval),
+                            Op::Log => lval.log(*rval),
+                        };
+                        Expr::Number(result)
+                    }
+                    (Expr::Number(lval), _) => {
+                        // Case 2: Left side is a number. For commutative ops, we can rearrange.
+                        match op {
+                            Op::Add | Op::Multiply => Expr::BinOp {
+                                lhs: Box::new(folded_rhs),
+                                op: op.clone(),
+                                rhs: Box::new(Expr::Number(*lval)),
+                            },
+                            _ => Expr::BinOp {
+                                lhs: Box::new(folded_lhs),
+                                op: op.clone(),
+                                rhs: Box::new(folded_rhs),
+                            },
+                        }
+                    }
+                    (_, Expr::Number(rval)) => {
+                        // Case 3: Right side is a number. No rearrangement needed.
+                        Expr::BinOp {
+                            lhs: Box::new(folded_lhs),
+                            op: op.clone(),
+                            rhs: Box::new(Expr::Number(*rval)),
+                        }
+                    }
+                    _ => {
+                        // Case 4: Neither side is a number. Reconstruct the BinOp.
+                        Expr::BinOp {
+                            lhs: Box::new(folded_lhs),
+                            op: op.clone(),
+                            rhs: Box::new(folded_rhs),
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(pest_derive::Parser)]
@@ -164,7 +238,8 @@ mod tests {
             .next()
             .unwrap()
             .into_inner();
-        let expr = &parse_expr(pairs);
-        assert_eq!(inorder_eval(expr, x), -4.0)
+        let mut expr = parse_expr(pairs);
+        expr.simplify();
+        assert_eq!(inorder_eval(&expr, x), -4.0)
     }
 }

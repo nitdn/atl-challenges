@@ -112,7 +112,7 @@ impl Inputs {
                         .clone()
                         .flatten()
                         .any(|pair| pair.as_rule() == Rule::var_x);
-                    let expr = parse_expr(pairs.next().unwrap().into_inner());
+                    let expr = parse_expr(pairs.next().unwrap().into_inner()).fold_constants();
                     let value = inorder_eval(&expr, self.current_x_val);
 
                     let input = if is_x {
@@ -123,8 +123,10 @@ impl Inputs {
                     } else {
                         format!("{} = {}", self.current_input, value)
                     };
-                    self.inputs.push((input, expr, self.current_input.clone()));
-                    self.current_input = value.to_string();
+
+                    let input_string =
+                        std::mem::replace(&mut self.current_input, value.to_string());
+                    self.inputs.push((input, expr, input_string));
                     self.current_result = value;
                 }
                 widget::text_input::focus("Text Box")
@@ -138,7 +140,7 @@ impl Inputs {
                 Task::none()
             }
             Message::ZoomIn => {
-                self.scale *= 1.0 + 5.0 / self.scale;
+                self.scale *= self.scale / 5.0 - 1.0;
                 Task::none()
             }
             Message::ZoomOut => {
@@ -172,16 +174,9 @@ impl Inputs {
             self.y_pan,
             self.scale,
             |x, y, scale| {
-                self.inputs.par_iter().any(|(_, expr, _)| {
-                    let x_0 = x - 1.0 / scale;
-                    let eval_x_0 = inorder_eval(expr, x_0);
-                    let x_1 = x + 1.0 / scale;
-                    let eval_x_1 = inorder_eval(expr, x_1);
-                    let start = eval_x_0.min(eval_x_1);
-                    let end = eval_x_0.max(eval_x_1);
-                    start <= y && y <= end
-                    // (start..=end).contains(&y)
-                })
+                self.inputs
+                    .par_iter()
+                    .any(|(_, expr, _)| (y - inorder_eval(expr, x)).abs() <= 1.0 / scale)
             },
         )
     }
