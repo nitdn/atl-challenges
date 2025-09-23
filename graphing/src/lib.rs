@@ -238,8 +238,7 @@ mod tests {
             .next()
             .unwrap()
             .into_inner();
-        let mut expr = parse_expr(pairs);
-        expr.simplify();
+        let expr = parse_expr(pairs).fold_constants();
         assert_eq!(inorder_eval(&expr, x), -4.0)
     }
 }

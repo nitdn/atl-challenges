@@ -32,7 +32,7 @@ impl Default for Inputs {
             inputs: Default::default(),
             is_graphing: true,
             pixels,
-            scale: 1.0,
+            scale: 100.0,
             x_pan: Default::default(),
             y_pan: Default::default(),
             current_result: Default::default(),
@@ -140,11 +140,11 @@ impl Inputs {
                 Task::none()
             }
             Message::ZoomIn => {
-                self.scale *= self.scale / 5.0 - 1.0;
+                self.scale += 5.0;
                 Task::none()
             }
             Message::ZoomOut => {
-                self.scale /= 1.0 + 5.0 / self.scale;
+                self.scale -= 5.0;
                 Task::none()
             }
             Message::StoreX(value) => {
