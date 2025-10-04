@@ -30,17 +30,13 @@
       ];
       perSystem =
         {
-          config,
-          inputs',
           lib,
           pkgs,
           self',
-          system,
           ...
         }:
         let
           buildInputs = with pkgs; [
-            pkg-config
             expat
             fontconfig
             freetype
@@ -76,23 +72,26 @@
           # module parameters provide easy access to attributes of the same
           # system.
           rust-project.src = src;
+          rust-project.defaults.perCrate.crane.args = {
+            inherit buildInputs;
+            RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
+          };
           rust-project.crates."mandelbrot".path = ./mandelbrot;
-          # rust-project.crates."subcrate-example".crane = {
-          # args = {
-          #   inherit buildInputs;
-          #   nativeBuildInputs = with pkgs; [
-          #     makeWrapper
-          #     pkg-config
-          #   ];
-          # };
-          # extraBuildArgs = {
-          #   postInstall = ''
-          #     # The Space between LD_LIBRARY_PATH and : is very important
-          #     wrapProgram $out/bin/subcrate-example --prefix LD_LIBRARY_PATH : \
-          #     ${builtins.toString (pkgs.lib.makeLibraryPath buildInputs)}
-          #   '';
-          # };
-          # };
+          rust-project.crates."graphing".crane = {
+            args = {
+              inherit buildInputs;
+              nativeBuildInputs = with pkgs; [
+                makeWrapper
+              ];
+            };
+            extraBuildArgs = {
+              #   postInstall = ''
+              #     # The Space between LD_LIBRARY_PATH and : is very important
+              #     wrapProgram $out/bin/subcrate-example --prefix LD_LIBRARY_PATH : \
+              #     ${builtins.toString (pkgs.lib.makeLibraryPath buildInputs)}
+              #   '';
+            };
+          };
 
           devShells.default = pkgs.mkShell {
             inputsFrom = [
@@ -107,7 +106,8 @@
               trunk
             ];
 
-            LD_LIBRARY_PATH = builtins.toString (pkgs.lib.makeLibraryPath buildInputs);
+            RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
+            # LD_LIBRARY_PATH = builtins.toString (pkgs.lib.makeLibraryPath buildInputs);
           };
         };
       flake = {
