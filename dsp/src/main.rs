@@ -8,9 +8,9 @@ fn main() -> std::io::Result<()> {
     let frequency = 200;
     let sample_count = sample_rate * 5;
     let header = &RIFFHeader::wav_header(sample_rate, sample_count);
-    let mut file = File::create("./sine.wav")?;
-    let mut file2 = File::create("./square.wav")?;
-    let mut file3 = File::create("./triangle.wav")?;
+    let mut file = File::create("./result/sine.wav")?;
+    let mut file2 = File::create("./result/square.wav")?;
+    let mut file3 = File::create("./result/triangle.wav")?;
     file.write_all(header)?;
     file2.write_all(header)?;
     file3.write_all(header)?;
