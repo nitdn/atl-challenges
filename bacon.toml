@@ -1,3 +1,5 @@
+default_job = "pedantic"
+
 [jobs.pedantic]
 command = [
   "cargo",
@@ -6,6 +8,10 @@ command = [
   "-D",
   "clippy::pedantic",
   "-D",
-  "clippy::nursery"
+  "clippy::nursery",
 ]
 need_stdout = false
+[jobs.playback]
+command = ["ffplay", "result/sine2.wav"]
+need_stdout = true
+

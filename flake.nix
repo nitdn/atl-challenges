@@ -47,6 +47,8 @@
             xorg.libXcursor
             xorg.libXi
             xorg.libXrandr
+            ffmpeg
+            mediainfo
             wayland
             libxkbcommon
 
