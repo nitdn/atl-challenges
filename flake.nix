@@ -49,6 +49,7 @@
             xorg.libXrandr
             ffmpeg
             mediainfo
+            sdl3
             wayland
             libxkbcommon
 
@@ -107,7 +108,7 @@
               watchexec
               trunk
             ];
-
+            TMPDIR2 = "~/Documents/atl-challenges/target";
             RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
             # LD_LIBRARY_PATH = builtins.toString (pkgs.lib.makeLibraryPath buildInputs);
           };

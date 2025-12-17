@@ -1,4 +1,10 @@
-use std::{array::TryFromSliceError, f32, time::Duration};
+use std::{
+    array::TryFromSliceError,
+    f32,
+    fs::File,
+    io::{BufReader, Error, Read},
+    time::Duration,
+};
 
 #[derive(Debug, Clone, Copy)]
 enum AudioFormat {
@@ -127,6 +133,58 @@ impl<'a> RIFFHeader<'a> {
             data_size: pcm_size,
         }
     }
+
+    pub fn file_type(&self) -> &'a [u8; 4] {
+        self.file_type
+    }
+
+    pub fn file_size(&self) -> u32 {
+        self.file_size
+    }
+
+    pub fn file_format(&self) -> &'a [u8; 4] {
+        self.file_format
+    }
+
+    pub fn format_block_id(&self) -> &'a [u8; 4] {
+        self.format_block_id
+    }
+
+    pub fn block_size(&self) -> u32 {
+        self.block_size
+    }
+
+    pub fn audio_format(&self) -> u16 {
+        self.audio_format
+    }
+
+    pub fn nbr_channels(&self) -> u16 {
+        self.nbr_channels
+    }
+
+    pub fn sample_rate_bytes(&self) -> u32 {
+        self.sample_rate_bytes
+    }
+
+    pub fn byte_per_sec(&self) -> u32 {
+        self.byte_per_sec
+    }
+
+    pub fn byte_per_block(&self) -> u16 {
+        self.byte_per_block
+    }
+
+    pub fn bits_per_sample(&self) -> u16 {
+        self.bits_per_sample
+    }
+
+    pub fn data_block_id(&self) -> &'a [u8; 4] {
+        self.data_block_id
+    }
+
+    pub fn data_size(&self) -> u32 {
+        self.data_size
+    }
 }
 
 #[must_use]
@@ -148,6 +206,22 @@ pub fn sine_wave(frequency: f32, sample_rate: u32, duration: Duration) -> Vec<u8
             sine_sample(frequency, sample_rate, current_sample).to_le_bytes()
         })
         .collect()
+}
+
+///
+///
+/// # Errors
+///
+/// This function will return an error if reading from bytes fail
+/// or header parsing fails
+pub fn get_header<'header_buffer>(
+    input_file: &mut BufReader<File>,
+    header: &'header_buffer mut [u8; 44],
+) -> Result<RIFFHeader<'header_buffer>, Error> {
+    input_file.read_exact(header)?;
+    let header: RIFFHeader = RIFFHeader::from_bytes(header)
+        .map_err(|e| Error::other(format!("Header parse failed: {e}")))?;
+    Ok(header)
 }
 
 #[must_use]
