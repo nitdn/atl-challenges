@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["dsp", "graphing", "hashmap", "mandelbrot", "quine", "scheduler","subcrate-example", "weights"]
+members = ["dsp", "fsdb", "graphing", "hashmap", "mandelbrot", "quine", "scheduler","subcrate-example", "weights"]
 
 [workspace.package]
 version = "0.1.0"
