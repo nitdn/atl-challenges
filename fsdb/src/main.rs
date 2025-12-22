@@ -1,107 +1,99 @@
 use std::env::temp_dir;
-use std::error::Error;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, ErrorKind, Write};
 use std::net::{TcpListener, TcpStream};
 
-use fsdb::InMemoryDB;
+use fsdb::InMemoryTable;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
     for stream in listener.incoming() {
         let stream = stream?;
-        handle_connection(stream)?;
         println!("Connection established!");
+        handle_connection(stream)?;
     }
     Ok(())
 }
 
-fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::error::Error>> {
-    let inner = &stream.try_clone()?;
-    let buf_reader = BufReader::new(inner);
+fn handle_connection(mut stream: TcpStream) -> std::io::Result<()> {
+    let reader = stream.try_clone()?;
+    let buf_reader = BufReader::new(&reader);
     for line in buf_reader.lines() {
-        println!("Request: {line:#?}");
-        // let response = format!("ok: {line:#?} \n");
-        // stream.write_all(response.as_bytes())?;
-        let line = &line?;
-        if line.starts_with("create ") {
-            let values: Vec<&str> = line.split_whitespace().skip(1).take(2).collect();
-            let (Some(table_name), Some(value_type)) = (values.first(), values.get(1)) else {
-                continue;
-            };
-            let db = InMemoryDB::new(value_type, &temp_dir().join(table_name));
-            db.flush()?;
-            let response = format!("ok: {values:#?} \n");
-            stream.write_all(response.as_bytes())?;
+        println!("Request: {:#?}", &line);
+        let Ok(line) = line else { continue };
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.is_empty() {
+            continue;
         }
-        if line.starts_with("insert ") {
-            let values: Vec<&str> = line.split_whitespace().skip(1).take(3).collect();
-            let (Some(table_name), Some(key), Some(value)): (
-                Option<&str>,
-                Option<&str>,
-                Option<&str>,
-            ) = (
-                values.first().copied(),
-                values.get(1).copied(),
-                values.get(2).copied(),
-            ) else {
-                continue;
-            };
-            let mut db = InMemoryDB::load(&temp_dir().join(table_name))?;
-            db.insert(key.to_owned(), value.to_owned())?;
-            let response = format!("ok: {values:#?} \n");
-            stream.write_all(response.as_bytes())?;
-        }
-        if line.starts_with("metadata ") {
-            let values: Vec<&str> = line.split_whitespace().skip(1).take(1).collect();
-            let Some(table_name): Option<&str> = values.first().copied() else {
-                continue;
-            };
-            let db = InMemoryDB::load(&temp_dir().join(table_name))?;
-            let response = format!("{table_name} type {0} \n", db.metadata());
-            stream.write_all(response.as_bytes())?;
-        }
-        if line.starts_with("select ") {
-            let values: Vec<&str> = line.split_whitespace().skip(1).take(2).collect();
-            let (Some(table_name), Some(key)): (Option<&str>, Option<&str>) =
-                (values.first().copied(), values.get(1).copied())
-            else {
-                continue;
-            };
-            let db = InMemoryDB::load(&temp_dir().join(table_name))?;
-            let response = if let Some(value) = db.get(&key.to_owned()) {
-                format!("{key}: {value} \n")
-            } else {
-                "Failed!\n".to_owned()
-            };
-            stream.write_all(response.as_bytes())?;
-        }
-        if line.starts_with("remove ") {
-            let values: Vec<&str> = line.split_whitespace().skip(1).take(2).collect();
-            let (Some(table_name), Some(key)): (Option<&str>, Option<&str>) =
-                (values.first().copied(), values.get(1).copied())
-            else {
-                continue;
-            };
-
-            let mut db = InMemoryDB::load(&temp_dir().join(table_name))?;
-            let entry = db.contains_key(&key.to_owned());
-
-            let response = if entry {
-                db.remove(&key.to_owned())?;
-                format!("ok: {values:#?} \n")
-            } else {
-                "Failed!\n".to_owned()
-            };
-            stream.write_all(response.as_bytes())?;
-        }
-
-        if line == "exit" {
-            let response = "We will perish\n";
-            stream.write_all(response.as_bytes())?;
-            break;
-        }
+        let response = match parts[..] {
+            ["create", table_name, value_type] => {
+                let db = InMemoryTable::new(value_type, &temp_dir().join(table_name));
+                db.flush()?;
+                format!("ok: {:#?} \n", &parts)
+            }
+            ["insert", table_name, key, value] => {
+                let mut db = match InMemoryTable::load(&temp_dir().join(table_name)) {
+                    Ok(it) => it,
+                    Err(err) if err.kind() == ErrorKind::NotFound => {
+                        stream.write_all(b"Not found!\n")?;
+                        continue;
+                    }
+                    Err(err) => return Err(err),
+                };
+                db.insert(key.to_owned(), value.to_owned())?;
+                format!("ok: {:#?} \n", &parts)
+            }
+            ["metadata", table_name] => {
+                let db = match InMemoryTable::load(&temp_dir().join(table_name)) {
+                    Ok(it) => it,
+                    Err(err) if err.kind() == ErrorKind::NotFound => {
+                        stream.write_all(b"Not found!\n")?;
+                        continue;
+                    }
+                    Err(err) => return Err(err),
+                };
+                format!("{table_name} type {0} \n", db.metadata())
+            }
+            ["select", table_name, key] => {
+                match InMemoryTable::load(&temp_dir().join(table_name)) {
+                    Ok(it) => it,
+                    Err(err) if err.kind() == ErrorKind::NotFound => {
+                        stream.write_all(b"Not found!\n")?;
+                        continue;
+                    }
+                    Err(err) => return Err(err),
+                }
+                .get(&key.to_owned())
+                .map_or_else(
+                    || "Failed!\n".to_owned(),
+                    |value| format!("{key}: {value} \n"),
+                )
+            }
+            ["remove", table_name, key] => {
+                let mut db = match InMemoryTable::load(&temp_dir().join(table_name)) {
+                    Ok(it) => it,
+                    Err(err) if err.kind() == ErrorKind::NotFound => {
+                        stream.write_all(b"Not found!\n")?;
+                        continue;
+                    }
+                    Err(err) => return Err(err),
+                };
+                match db.remove(&key.to_owned()) {
+                    Ok(()) => format!("ok: {:#?} \n", &parts),
+                    Err(err) if err.kind() == ErrorKind::NotFound => "Not found!\n".to_owned(),
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
+            }
+            ["exit"] => {
+                stream.write_all(b"Goodbye\n")?;
+                break;
+            }
+            _ => "Bad command\n".to_owned(),
+        };
+        stream.write_all(response.as_bytes())?;
     }
-
+    println!("Connection closed!");
     Ok(())
 }
