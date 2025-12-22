@@ -102,7 +102,7 @@
             ];
             packages = with pkgs; [
               bacon
-              just
+              inetutils
               jujutsu
               meld
               watchexec

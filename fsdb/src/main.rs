@@ -27,12 +27,12 @@ fn handle_connection(mut stream: TcpStream) -> std::io::Result<()> {
         }
         let response = match parts[..] {
             ["create", table_name, value_type] => {
-                let db = InMemoryTable::new(value_type, &temp_dir().join(table_name));
-                db.flush()?;
+                let in_memory_table = InMemoryTable::new(value_type, &temp_dir().join(table_name));
+                in_memory_table.flush()?;
                 format!("ok: {:#?} \n", &parts)
             }
             ["insert", table_name, key, value] => {
-                let mut db = match InMemoryTable::load(&temp_dir().join(table_name)) {
+                let mut in_memory_table = match InMemoryTable::load(&temp_dir().join(table_name)) {
                     Ok(it) => it,
                     Err(err) if err.kind() == ErrorKind::NotFound => {
                         stream.write_all(b"Not found!\n")?;
@@ -40,11 +40,11 @@ fn handle_connection(mut stream: TcpStream) -> std::io::Result<()> {
                     }
                     Err(err) => return Err(err),
                 };
-                db.insert(key.to_owned(), value.to_owned())?;
+                in_memory_table.insert(key.to_owned(), value.to_owned())?;
                 format!("ok: {:#?} \n", &parts)
             }
             ["metadata", table_name] => {
-                let db = match InMemoryTable::load(&temp_dir().join(table_name)) {
+                let in_memory_table = match InMemoryTable::load(&temp_dir().join(table_name)) {
                     Ok(it) => it,
                     Err(err) if err.kind() == ErrorKind::NotFound => {
                         stream.write_all(b"Not found!\n")?;
@@ -52,7 +52,7 @@ fn handle_connection(mut stream: TcpStream) -> std::io::Result<()> {
                     }
                     Err(err) => return Err(err),
                 };
-                format!("{table_name} type {0} \n", db.metadata())
+                format!("{table_name} type {0} \n", in_memory_table.metadata())
             }
             ["select", table_name, key] => {
                 match InMemoryTable::load(&temp_dir().join(table_name)) {
@@ -63,14 +63,14 @@ fn handle_connection(mut stream: TcpStream) -> std::io::Result<()> {
                     }
                     Err(err) => return Err(err),
                 }
-                .get(&key.to_owned())
+                .get(key)
                 .map_or_else(
                     || "Failed!\n".to_owned(),
                     |value| format!("{key}: {value} \n"),
                 )
             }
             ["remove", table_name, key] => {
-                let mut db = match InMemoryTable::load(&temp_dir().join(table_name)) {
+                let mut in_memory_table = match InMemoryTable::load(&temp_dir().join(table_name)) {
                     Ok(it) => it,
                     Err(err) if err.kind() == ErrorKind::NotFound => {
                         stream.write_all(b"Not found!\n")?;
@@ -78,7 +78,7 @@ fn handle_connection(mut stream: TcpStream) -> std::io::Result<()> {
                     }
                     Err(err) => return Err(err),
                 };
-                match db.remove(&key.to_owned()) {
+                match in_memory_table.remove(&key.to_owned()) {
                     Ok(()) => format!("ok: {:#?} \n", &parts),
                     Err(err) if err.kind() == ErrorKind::NotFound => "Not found!\n".to_owned(),
                     Err(err) => {

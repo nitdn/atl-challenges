@@ -12,22 +12,8 @@ pub struct InMemoryTable {
     data: HashMap<String, String>,
 }
 
-impl std::ops::DerefMut for InMemoryTable {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
-}
-
-impl std::ops::Deref for InMemoryTable {
-    type Target = HashMap<String, String>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
 fn typeof_path(base_path: &Path) -> PathBuf {
-    base_path.join("metadata").join("type")
+    base_path.join("metadata/type")
 }
 
 fn data_path(base_path: &Path) -> PathBuf {
@@ -45,9 +31,9 @@ impl InMemoryTable {
         }
     }
 
-    #[must_use] 
-    pub fn metadata(&self) -> String {
-        self.value_type.clone()
+    #[must_use]
+    pub fn metadata(&self) -> &str {
+        &self.value_type
     }
 
     pub fn load(base_path: &Path) -> std::io::Result<Self> {
@@ -95,6 +81,10 @@ impl InMemoryTable {
         Ok(())
     }
 
+    pub fn get(&self, k: &str) -> Option<&String> {
+        self.data.get(k)
+    }
+
     pub fn remove(&mut self, k: &String) -> std::io::Result<()> {
         fs::remove_dir_all(data_path(&self.base_path).join(k))?;
         self.data.remove(k);
@@ -125,6 +115,7 @@ mod tests {
     fn string_table() {
         let base_path = &temp_dir().join("string_table");
         let mut db: InMemoryTable = InMemoryTable::new("string", base_path);
+        db.flush().unwrap();
         db.insert("foo".to_owned(), "bar".to_owned()).unwrap();
         db.insert("baz".to_owned(), "123".to_owned()).unwrap();
 
@@ -138,10 +129,9 @@ mod tests {
     fn number_table() {
         let base_path = &temp_dir().join("number_table");
         let mut db: InMemoryTable = InMemoryTable::new("number", base_path);
+        db.flush().unwrap();
         db.insert("foo".to_owned(), "456".to_owned()).unwrap();
         db.insert("baz".to_owned(), "123".to_owned()).unwrap();
-
-        db.flush().unwrap();
 
         let db2 = InMemoryTable::load(base_path).unwrap();
         assert_eq!(db, db2);
