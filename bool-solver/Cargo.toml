@@ -1,0 +1,8 @@
+[package]
+name = "bool-solver"
+edition = "2024"
+version.workspace = true
+description.workspace = true
+
+[dependencies]
+itertools = "0.14.0"
