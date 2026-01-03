@@ -401,6 +401,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "bloom-filter"
+version = "0.1.0"
+
+[[package]]
 name = "bool-solver"
 version = "0.1.0"
 dependencies = [

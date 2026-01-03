@@ -64,6 +64,14 @@ fn swap_elements<Orderable: Ord + Copy + std::fmt::Debug>(
     }
 }
 
+pub fn foo() -> Box<dyn std::fmt::Display> {
+    if true {
+        Box::new("Hello")
+    } else {
+        Box::new(34)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
