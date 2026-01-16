@@ -43,6 +43,8 @@
             freetype.dev
             libGL
             pkg-config
+            cmake
+            libclang
             xorg.libX11
             xorg.libXcursor
             xorg.libXi
@@ -51,6 +53,8 @@
             mediainfo
             sdl3
             wayland
+            wayland-protocols
+            glfw-wayland
             libxkbcommon
 
           ];
@@ -109,7 +113,8 @@
               trunk
             ];
             TMPDIR = "~/Documents/atl-challenges/target";
-            RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
+            # RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
+            LIBCLANG_PATH = pkgs.lib.makeLibraryPath [ pkgs.libclang ];
             # LD_LIBRARY_PATH = builtins.toString (pkgs.lib.makeLibraryPath buildInputs);
           };
         };

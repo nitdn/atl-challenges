@@ -1,0 +1,9 @@
+[package]
+name = "particle2d"
+edition = "2024"
+version.workspace = true
+description.workspace = true
+
+[dependencies]
+raylib = { version = "5.5.1", features = ["wayland"] }
+rayon = "1.11.0"

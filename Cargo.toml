@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["bloom-filter","bool-solver","dsp", "fsdb", "graphing", "hashmap", "mandelbrot", "quine", "scheduler","subcrate-example", "weights"]
+members = ["bloom-filter","bool-solver","dsp", "fsdb", "graphing", "hashmap", "mandelbrot", "particle2d", "quine", "scheduler","subcrate-example", "weights"]
 
 [workspace.package]
 version = "0.1.0"
