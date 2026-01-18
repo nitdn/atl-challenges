@@ -129,7 +129,6 @@ fn main() {
             d.draw_circle_v(particle.position, CIRCLE_RADIUS, particle.color);
         }
         prev_particles.copy_from_slice(&particles);
-
         d.draw_text(&fps_text, 10, 10, 20, Color::DARKGRAY);
         d.draw_text(&frame_time_text, 10, 30, 20, Color::DARKGRAY);
         d.draw_text(
