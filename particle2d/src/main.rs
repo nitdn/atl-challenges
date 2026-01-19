@@ -2,8 +2,13 @@ use std::f32;
 
 use raylib::prelude::*;
 use rayon::prelude::*;
-const PARTICLE_COUNT: usize = 25;
 const CIRCLE_RADIUS: f32 = 10.0;
+const PARTICLE_INIT_RULES: [(Color, usize); 2] = [(Color::GREEN, 25), (Color::RED, 25)];
+const ATTRACTION_RULES: [(Color, Color, f32); 3] = [
+    (Color::GREEN, Color::RED, -6.0),
+    (Color::RED, Color::GREEN, 6.0),
+    (Color::RED, Color::RED, 32.0),
+];
 
 #[derive(Copy, Clone)]
 struct Particle {
@@ -28,30 +33,30 @@ fn find_particle_accel(particle: &Particle, other: &Particle) -> Vector2 {
     if dist_sqr < 1.0 {
         return Vector2::zero();
     }
-    let magnitude = if (particle.color, other.color) == (Color::GREEN, Color::RED) {
-        -6.0
-    } else if (particle.color, other.color) == (Color::RED, Color::GREEN) {
-        6.0
-    } else {
-        0.0
-    };
+    let magnitude = ATTRACTION_RULES
+        .iter()
+        .copied()
+        .find_map(|(first, second, accel)| {
+            (first == particle.color && second == other.color).then_some(accel)
+        })
+        .unwrap_or(0.0);
     diff.normalized() * magnitude
 }
 
-fn particles_init(rl: &RaylibHandle, color: Color) -> Vec<Particle> {
+fn particles_init(
+    rl: &RaylibHandle,
+    color: &Color,
+    particle_count: usize,
+) -> impl Iterator<Item = Particle> {
     let x_coords = std::iter::repeat_with(|| rl.get_random_value::<i32>(0..rl.get_screen_width()))
-        .take(PARTICLE_COUNT);
+        .take(particle_count);
     let y_coords = std::iter::repeat_with(|| rl.get_random_value::<i32>(0..rl.get_screen_height()))
-        .take(PARTICLE_COUNT);
+        .take(particle_count);
 
-    x_coords
-        .into_iter()
-        .zip(y_coords)
-        .map(|coords| {
-            let position = Vector2::new(coords.0 as f32, coords.1 as f32);
-            Particle::new(position, Vector2::zero(), color)
-        })
-        .collect()
+    x_coords.into_iter().zip(y_coords).map(|coords| {
+        let position = Vector2::new(coords.0 as f32, coords.1 as f32);
+        Particle::new(position, Vector2::zero(), *color)
+    })
 }
 
 fn apply_boundary_constraints(particle: &mut Particle, bounds_width: f32, bounds_height: f32) {
@@ -79,8 +84,10 @@ fn main() {
     let mut current_fps = 60;
     let (bounds_width, bounds_height) =
         (rl.get_screen_width() as f32, rl.get_screen_height() as f32);
-    let mut particles: Vec<_> = particles_init(&rl, Color::GREEN);
-    particles.append(&mut particles_init(&rl, Color::RED));
+    let mut particles: Vec<_> = PARTICLE_INIT_RULES
+        .iter()
+        .flat_map(|(color, particle_count)| particles_init(&rl, color, *particle_count))
+        .collect();
     let mut prev_particles = particles.clone();
     rl.set_target_fps(current_fps as u32);
     #[allow(clippy::cast_possible_truncation)]
@@ -101,7 +108,6 @@ fn main() {
 
         let frame_time_text = format!("Frame time: {:02.2}", rl.get_frame_time());
         let delta_time = rl.get_frame_time();
-        let rules_text = "Rules: \nRED -> GREEN (+6.0) \nGREEN -> RED (-6.0)";
         let mut d = rl.begin_drawing(&thread);
 
         d.clear_background(Color::WHITE);
@@ -139,6 +145,5 @@ fn main() {
             20,
             Color::DARKGRAY,
         );
-        d.draw_text(rules_text, 10, 70, 20, Color::DARKGRAY);
     }
 }
