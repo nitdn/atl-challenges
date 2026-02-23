@@ -45,18 +45,24 @@
             pkg-config
             cmake
             libclang
-            xorg.libX11
-            xorg.libXcursor
-            xorg.libXi
-            xorg.libXrandr
+            libx11
+            libxcursor
+            libxi
+            libxrandr
             ffmpeg
             mediainfo
             sdl3
             wayland
             wayland-protocols
-            glfw-wayland
+            glfw
             libxkbcommon
-
+          ];
+          ocamlPackages = pkgs.ocamlPackages_latest;
+          ocamlBuildInputs = with ocamlPackages; [
+            findlib
+            dune_3
+            batteries
+            ocaml
           ];
           craneLib = inputs.crane.mkLib pkgs;
 
@@ -88,10 +94,16 @@
             args = {
               inherit buildInputs;
               nativeBuildInputs = with pkgs; [
+                wayland
+                pkg-config
                 makeWrapper
+                addDriverRunpath
+                # autoPatchelfHook
               ];
             };
             extraBuildArgs = {
+              postFixup = "addDriverRunpath $out/bin/graphing";
+
               #   postInstall = ''
               #     # The Space between LD_LIBRARY_PATH and : is very important
               #     wrapProgram $out/bin/subcrate-example --prefix LD_LIBRARY_PATH : \
@@ -104,16 +116,22 @@
             inputsFrom = [
               self'.devShells.rust
             ];
-            packages = with pkgs; [
-              bacon
-              inetutils
-              jujutsu
-              meld
-              watchexec
-              trunk
-            ];
+            packages =
+              with pkgs;
+              [
+                bacon
+                inetutils
+                jujutsu
+                meld
+                watchexec
+                trunk
+                ocamlPackages.ocaml-lsp
+                ocamlPackages.ocamlformat
+                ocamlPackages.utop
+              ]
+              ++ ocamlBuildInputs;
             TMPDIR = "~/Documents/atl-challenges/target";
-            # RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
+            RUSTFLAGS = "-C link-arg=-Wl,-rpath,${lib.makeLibraryPath buildInputs}";
             LIBCLANG_PATH = pkgs.lib.makeLibraryPath [ pkgs.libclang ];
             # LD_LIBRARY_PATH = builtins.toString (pkgs.lib.makeLibraryPath buildInputs);
           };

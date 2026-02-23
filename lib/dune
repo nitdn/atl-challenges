@@ -1,0 +1,2 @@
+(library
+ (name atl_challenges))
