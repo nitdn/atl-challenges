@@ -1,4 +1,5 @@
-let problem_board = [|
+let _problem_board_medium =
+  [|
 6; 5; 9; 0; 1; 0; 2; 8; 0;
 1; 0; 0; 0; 5; 0; 0; 3; 0;
 2; 0; 0; 8; 0; 0; 0; 1; 0;
@@ -8,8 +9,22 @@ let problem_board = [|
 3; 0; 2; 0; 0; 9; 0; 0; 4;
 0; 0; 0; 0; 0; 1; 8; 0; 0;
 0; 0; 8; 7; 6; 0; 0; 0; 0;
-|] [@@ocamlformat "disable"]
+|] [@ocamlformat "disable"]
 
+let _problem_board_hard =
+  [|
+  3; 0; 0; 0; 4; 9; 0; 0; 0; (* Row 1 *)
+  0; 0; 0; 6; 0; 0; 5; 0; 1; (* Row 2 *)
+  7; 5; 2; 0; 0; 1; 0; 0; 0; (* Row 3 *)
+  0; 0; 1; 0; 0; 0; 7; 0; 0; (* Row 4 *)
+  5; 0; 0; 3; 9; 6; 0; 0; 0; (* Row 5 *)
+  0; 0; 8; 1; 5; 0; 0; 9; 6; (* Row 6 *)
+  0; 0; 3; 0; 1; 0; 0; 6; 0; (* Row 7 *)
+  0; 0; 4; 0; 0; 0; 1; 0; 0; (* Row 8 *)
+  0; 0; 0; 0; 2; 8; 0; 0; 0  (* Row 9 *)
+|] [@ocamlformat "disable"]
+
+let problem_board = _problem_board_hard
 let solved_board = Array.copy problem_board
 let get_item board (x, y) = board.(x + (y * 9))
 let next_item (x, y) = if x < 8 then (x + 1, y) else (0, y + 1)
@@ -33,7 +48,7 @@ let valid_values board (x, y) =
   done;
   (* The small squares stuff is actually voodoo lol
   i assume whats happening here is that x - x mod 3 resets it back to one
-  of the 3 starting positions of the small squares *) 
+  of the 3 starting positions of the small squares *)
   let small_square_x = x - (x mod 3) and small_square_y = y - (y mod 3) in
   for x = small_square_x to small_square_x + 2 do
     for y = small_square_y to small_square_y + 2 do
@@ -66,12 +81,17 @@ and try_entry board (x, y) = function
       else try_entry board (x, y) rest
 
 let print_board board =
+  print_endline "--------+-------+--------";
   for y = 0 to 8 do
+    print_string "| ";
     for x = 0 to 8 do
       print_string (get_as_string board (x, y));
-      print_string " "
+      if x mod 3 = 2 then print_string " | " else print_string " "
     done;
-    print_newline ()
+    if y mod 3 = 2 then (
+      print_newline ();
+      print_endline "--------+-------+--------")
+    else print_newline ()
   done
 
 let _ = fill solved_board (0, 0)
