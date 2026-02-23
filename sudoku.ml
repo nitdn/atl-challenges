@@ -1,4 +1,3 @@
-(* let board = Array.make_matrix 9 9 0 *)
 let problem_board = [|
 6; 5; 9; 0; 1; 0; 2; 8; 0;
 1; 0; 0; 0; 5; 0; 0; 3; 0;
@@ -22,11 +21,19 @@ let get_as_string board (x, y) =
 
 (* Grabs a list of valid values *)
 let valid_values board (x, y) =
+  (* it is a very roundabout way of generating values
+  but i have not been able to actually make it any simpler
+  like i tried to just make it do a recursive function
+  but it also sucks because like why am i iterating over an empty
+  list just to do nothing with it *)
   let valid_predicates_array = Array.make 10 true in
   for i = 0 to 8 do
     valid_predicates_array.(get_item board (x, i)) <- false;
     valid_predicates_array.(get_item board (i, y)) <- false
   done;
+  (* The small squares stuff is actually voodoo lol
+  i assume whats happening here is that x - x mod 3 resets it back to one
+  of the 3 starting positions of the small squares *) 
   let small_square_x = x - (x mod 3) and small_square_y = y - (y mod 3) in
   for x = small_square_x to small_square_x + 2 do
     for y = small_square_y to small_square_y + 2 do
@@ -39,8 +46,6 @@ let valid_values board (x, y) =
   done;
   !valid_list (* i always forget ! is deref *)
 
-(* i would like to call this line recursively actually *)
-
 let rec fill board (x, y) =
   if y > 8 then true
   else if get_item board (x, y) > 0 then fill board (next_item (x, y))
@@ -50,10 +55,11 @@ let rec fill board (x, y) =
     (* Basically everytime you call this function the head kind of shrinks *)
     | valid_values -> try_entry board (x, y) valid_values
 
+(* i would like to call this line recursively actually *)
 and try_entry board (x, y) = function
   | [] ->
-    set_item board (x, y) 0;
-    false (*Oh god we are cooked*)
+      set_item board (x, y) 0;
+      false (*Oh god we are cooked*)
   | curr :: rest ->
       set_item board (x, y) curr;
       if fill board (next_item (x, y)) then true
