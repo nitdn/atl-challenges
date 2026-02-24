@@ -1,6 +1,6 @@
 (lang dune 3.20)
 
-(name atl-challenges)
+(name atl_challenges)
 
 (generate_opam_files true)
 
@@ -16,7 +16,7 @@
 (documentation https://url/to/documentation)
 
 (package
- (name atl-challenges)
+ (name atl_challenges)
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends ocaml)

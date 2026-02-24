@@ -1,4 +1,4 @@
 (executable
- (public_name atl-challenges)
+ (public_name atl_challenges)
  (name main)
  (libraries atl_challenges))
