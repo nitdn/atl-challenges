@@ -1,18 +1,20 @@
+module Ints = Set.Make (Int)
+
 let _problem_board_medium =
-  [|
-6; 5; 9; 0; 1; 0; 2; 8; 0;
-1; 0; 0; 0; 5; 0; 0; 3; 0;
-2; 0; 0; 8; 0; 0; 0; 1; 0;
-0; 0; 0; 1; 3; 5; 0; 7; 0;
-8; 0; 0; 9; 0; 0; 0; 0; 2;
-0; 0; 3; 0; 7; 8; 6; 4; 0;
-3; 0; 2; 0; 0; 9; 0; 0; 4;
-0; 0; 0; 0; 0; 1; 8; 0; 0;
-0; 0; 8; 7; 6; 0; 0; 0; 0;
-|] [@ocamlformat "disable"]
+  [
+  6; 5; 9; 0; 1; 0; 2; 8; 0;
+  1; 0; 0; 0; 5; 0; 0; 3; 0;
+  2; 0; 0; 8; 0; 0; 0; 1; 0;
+  0; 0; 0; 1; 3; 5; 0; 7; 0;
+  8; 0; 0; 9; 0; 0; 0; 0; 2;
+  0; 0; 3; 0; 7; 8; 6; 4; 0;
+  3; 0; 2; 0; 0; 9; 0; 0; 4;
+  0; 0; 0; 0; 0; 1; 8; 0; 0;
+  0; 0; 8; 7; 6; 0; 0; 0; 0;
+] [@ocamlformat "disable"]
 
 let _problem_board_hard =
-  [|
+  [
   3; 0; 0; 0; 4; 9; 0; 0; 0; (* Row 1 *)
   0; 0; 0; 6; 0; 0; 5; 0; 1; (* Row 2 *)
   7; 5; 2; 0; 0; 1; 0; 0; 0; (* Row 3 *)
@@ -22,79 +24,78 @@ let _problem_board_hard =
   0; 0; 3; 0; 1; 0; 0; 6; 0; (* Row 7 *)
   0; 0; 4; 0; 0; 0; 1; 0; 0; (* Row 8 *)
   0; 0; 0; 0; 2; 8; 0; 0; 0  (* Row 9 *)
-|] [@ocamlformat "disable"]
+] [@ocamlformat "disable"]
 
 let problem_board = _problem_board_hard
-let solved_board = Array.copy problem_board
-let get_item board (x, y) = board.(x + (y * 9))
-let next_item (x, y) = if x < 8 then (x + 1, y) else (0, y + 1)
-let set_item board (x, y) value = board.(x + (y * 9)) <- value
 
-let get_as_string board (x, y) =
-  let i = get_item board (x, y) in
-  if i > 0 then string_of_int i else "."
+let set_item board entry_index value =
+  List.mapi
+    (fun index element -> if index = entry_index then value else element)
+    board
 
-(* Grabs a list of valid values *)
-let valid_values board (x, y) =
-  (* it is a very roundabout way of generating values
-  but i have not been able to actually make it any simpler
-  like i tried to just make it do a recursive function
-  but it also sucks because like why am i iterating over an empty
-  list just to do nothing with it *)
-  let valid_predicates_array = Array.make 10 true in
-  for i = 0 to 8 do
-    valid_predicates_array.(get_item board (x, i)) <- false;
-    valid_predicates_array.(get_item board (i, y)) <- false
-  done;
-  (* The small squares stuff is actually voodoo lol
-  i assume whats happening here is that x - x mod 3 resets it back to one
-  of the 3 starting positions of the small squares *)
-  let small_square_x = x - (x mod 3) and small_square_y = y - (y mod 3) in
-  for x = small_square_x to small_square_x + 2 do
-    for y = small_square_y to small_square_y + 2 do
-      valid_predicates_array.(get_item board (x, y)) <- false
-    done
-  done;
-  let valid_list = ref [] in
-  for i = 1 to 9 do
-    if valid_predicates_array.(i) then valid_list := i :: !valid_list
-  done;
-  !valid_list (* i always forget ! is deref *)
+let valid_values board entry_index =
+  let numbers = Ints.of_list [ 1; 2; 3; 4; 5; 6; 7; 8; 9 ] in
+  let filter_rows numbers =
+    let row =
+      Ints.of_list (List.filteri (fun idx _ -> idx / 9 = entry_index / 9) board)
+    in
+    Ints.diff numbers row
+  in
+  let filter_columns numbers =
+    let column =
+      Ints.of_list
+        (List.filteri (fun idx _ -> idx mod 9 = entry_index mod 9) board)
+    in
+    Ints.diff numbers column
+  in
+  let filter_boxes numbers =
+    let get_box idx =
+      let row = idx / 9 in
+      let column = idx mod 9 in
+      (row / 3 * 3) + (column / 3)
+    in
+    let box =
+      Ints.of_list
+        (List.filteri (fun idx _ -> get_box idx = get_box entry_index) board)
+    in
+    Ints.diff numbers box
+  in
+  (* Grabs a list of valid values *)
+  numbers |> filter_rows |> filter_columns |> filter_boxes |> Ints.to_list
 
-let rec fill board (x, y) =
-  if y > 8 then true
-  else if get_item board (x, y) > 0 then fill board (next_item (x, y))
-  else
-    match valid_values board (x, y) with
-    | [] -> false
-    (* Basically everytime you call this function the head kind of shrinks *)
-    | valid_values -> try_entry board (x, y) valid_values
+let rec fill board =
+  (* Find empty cell *)
+  match List.find_index (fun value -> value = 0) board with
+  (* Filled *)
+  | None -> Some board
+  | Some idx ->
+      (* i would like to call this line recursively actually *)
+      let rec try_entry board idx = function
+        | [] -> None (*Oh god we are cooked*)
+        | curr :: rest -> (
+            let board = set_item board idx curr in
+            match fill board with
+            | Some _ as pass -> pass
+            | _ -> try_entry board idx rest)
+      in
+      try_entry board idx (valid_values board idx)
 
-(* i would like to call this line recursively actually *)
-and try_entry board (x, y) = function
-  | [] ->
-      set_item board (x, y) 0;
-      false (*Oh god we are cooked*)
-  | curr :: rest ->
-      set_item board (x, y) curr;
-      if fill board (next_item (x, y)) then true
-      else try_entry board (x, y) rest
+let get_as_string value = if value > 0 then string_of_int value else "."
 
 let print_board board =
-  print_endline "--------+-------+--------";
-  for y = 0 to 8 do
-    print_string "| ";
-    for x = 0 to 8 do
-      print_string (get_as_string board (x, y));
-      if x mod 3 = 2 then print_string " | " else print_string " "
-    done;
-    if y mod 3 = 2 then (
-      print_newline ();
-      print_endline "--------+-------+--------")
-    else print_newline ()
-  done
+  List.iteri
+    (fun idx value ->
+      print_string (get_as_string value);
+      if idx mod 9 = 9 - 1 (* last row *) then
+        if idx mod (9 * 3) = (9 * 3) - 1 then
+          print_endline "\n------+-------+------"
+        else print_newline ()
+      else if idx mod 3 = 2 then print_string " | "
+      else print_string " ")
+    board
 
-let _ = fill solved_board (0, 0)
+let solved_board =
+  match fill problem_board with Some board -> board | None -> failwith "bad"
 
 let () =
   print_endline "Problem board:";
