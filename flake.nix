@@ -121,7 +121,6 @@
               [
                 bacon
                 inetutils
-                jujutsu
                 meld
                 watchexec
                 trunk
