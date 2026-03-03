@@ -50,7 +50,14 @@ let valid_values board entry_index =
     let get_box idx =
       let row = idx / 9 in
       let column = idx mod 9 in
-      (row / 3 * 3) + (column / 3)
+      (* Increases the row by the column scale. Technically they are all the
+      same but there is a semantic difference. The scaling must be equal to what
+      we divide the column number by, afterwards we will add the divisions to
+      the scaled row. Otherwise we might get situations where 0 + 1 from first
+      column conflicts with 1 + 0 from 4th column even though they are not in
+      the same box. *)
+      let scaling = 3 in
+      (row / 3 * scaling) + (column / scaling)
     in
     let box =
       List.filteri (fun idx _ -> get_box idx = get_box entry_index) board
@@ -92,7 +99,9 @@ let print_board board =
     board
 
 let solved_board =
-  match fill problem_board with Some board -> board | None -> failwith "bad board"
+  match fill problem_board with
+  | Some board -> board
+  | None -> failwith "bad board"
 
 let () =
   print_endline "Problem board:";
