@@ -1,8 +1,0 @@
-lib: [
-  "_build/install/default/lib/atl_challenges/META"
-  "_build/install/default/lib/atl_challenges/dune-package"
-  "_build/install/default/lib/atl_challenges/opam"
-]
-bin: [
-  "_build/install/default/bin/atl_challenges"
-]
